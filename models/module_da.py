@@ -1340,7 +1340,9 @@ class FeatureNet(nn.Module):
         model_dict.update(pretrained_dict)
         self.model.load_state_dict(model_dict)
 
-        self.model = self.model.to(DEVICE)#.eval()
+        self.model = self.model.to(DEVICE).eval()
+        for param in self.model.parameters():
+            param.requires_grad = False
 
 
 
@@ -1388,7 +1390,8 @@ class FeatureNet(nn.Module):
         # if :
         #     x,_ = self.diffusion(x)
             # print(x)
-        depth3, depth2, depth1 = self.model.infer_image(x)  # HxW raw depth map in numpy
+        with torch.no_grad():
+            depth3, depth2, depth1 = self.model.infer_image(x)  # HxW raw depth map in numpy
         deps["stage1"] = depth3
         deps["stage2"] = depth2
         deps["stage3"] = depth1
@@ -1401,7 +1404,7 @@ class FeatureNet(nn.Module):
         # depth_pred: np.ndarray = depth.prediction
 
         # source_outputs = None
-        deps_out = []
+        # deps_out = []
         # # print(nview_idx)
         # if nview_idx==0:
         #     # source_outputs = depth_pred.float()
