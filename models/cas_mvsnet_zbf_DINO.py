@@ -13,7 +13,9 @@ def cas_mvsnet_loss(inputs, depth_gt_ms, mask_ms, **kwargs):
 
     total_loss = torch.tensor(0.0, dtype=torch.float32, device=mask_ms["stage1"].device, requires_grad=True)
 
-    for (stage_inputs, stage_key) in [(inputs[k], k) for k in inputs.keys() if "stage" in k]:
+    for stage_key, stage_inputs in inputs.items():
+        if "stage" not in stage_key:
+            continue
         # print(stage_key)
 
 
@@ -32,9 +34,6 @@ def cas_mvsnet_loss(inputs, depth_gt_ms, mask_ms, **kwargs):
         # depth_est1 = inputs["refined_depth"]
         # depth_est = stage_inputs["refined_depth"]
 
-        prob_volume = stage_inputs["prob_volume"]
-
-
         depth_gt = depth_gt_ms[stage_key]
         mask = mask_ms[stage_key]
         mask = mask > 0.5
@@ -47,9 +46,6 @@ def cas_mvsnet_loss(inputs, depth_gt_ms, mask_ms, **kwargs):
         depth_loss = F.smooth_l1_loss(depth_est[mask], depth_gt[mask], reduction='mean')
 
         # prob_loss = Adaptive_Multi_Modal_Cross_Entropy_Loss(depth_est, depth_gt, mask, int(depth_max)) #+ depth_loss
-        diffusion_loss = stage_inputs["diffusion_loss"]
-        # print(diffusion_loss)
-
         if depth_loss_weights is not None:
             stage_idx = int(stage_key.replace("stage", "")) - 1
             total_loss =total_loss + depth_loss_weights[stage_idx] * depth_loss
@@ -70,11 +66,7 @@ def cas_mvsnet_loss(inputs, depth_gt_ms, mask_ms, **kwargs):
     # return total_loss, depth_loss1
 
 # from __future__ import print_function
-import torch
-import torch.nn as nn
-import torch.utils.data
 # from torch.autograd import Variable
-import torch.nn.functional as F
 # import math
 # import numpy as np
 
@@ -319,7 +311,8 @@ class DepthNet(nn.Module):
                 deps_sum += warped_deps
                 deps_sq_sum += warped_deps.pow_(2)  # the memory of warped_volume has been modified
             del warped_deps
-        deps_variance = deps_sq_sum.div_(num_views).sub_(deps_sum.div_(num_views).pow_(2))
+        deps_sum = deps_sum.div_(num_views)
+        deps_variance = deps_sq_sum.div_(num_views).sub_(deps_sum.pow_(2))
 
 
 
@@ -345,7 +338,8 @@ class DepthNet(nn.Module):
                 volume_sq_sum += warped_volume.pow_(2)  # the memory of warped_volume has been modified
             del warped_volume
         # aggregate multiple feature volumes by variance
-        volume_variance = volume_sq_sum.div_(num_views).sub_(volume_sum.div_(num_views).pow_(2))
+        volume_sum = volume_sum.div_(num_views)
+        volume_variance = volume_sq_sum.div_(num_views).sub_(volume_sum.pow_(2))
 
 
 
